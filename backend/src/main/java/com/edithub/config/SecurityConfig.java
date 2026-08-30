@@ -37,6 +37,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/health", "/api/v1/info").permitAll()
                 .requestMatchers("/api/v1/users/{username}").permitAll()
                 .requestMatchers("/api/v1/skills").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/projects/explore").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/projects/{id}").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
