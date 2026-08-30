@@ -39,6 +39,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/skills").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/projects/explore").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/projects/{id}").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/projects/{projectId}/media").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/media/{id}/download-url").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
