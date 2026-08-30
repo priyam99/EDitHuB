@@ -45,14 +45,18 @@ public class MediaController {
     }
 
     @GetMapping("/projects/{projectId}/media")
-    public ApiResponse<List<MediaFileDto>> getProjectMedia(@PathVariable UUID projectId) {
-        List<MediaFileDto> mediaFiles = mediaService.getProjectMediaFiles(projectId);
+    public ApiResponse<List<MediaFileDto>> getProjectMedia(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal User currentUser) {
+        List<MediaFileDto> mediaFiles = mediaService.getProjectMediaFiles(projectId, currentUser);
         return ApiResponse.ok(mediaFiles);
     }
 
     @GetMapping("/media/{id}/download-url")
-    public ApiResponse<Map<String, String>> getDownloadUrl(@PathVariable UUID id) {
-        String downloadUrl = mediaService.getDownloadUrl(id);
+    public ApiResponse<Map<String, String>> getDownloadUrl(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal User currentUser) {
+        String downloadUrl = mediaService.getDownloadUrl(id, currentUser);
         return ApiResponse.ok(Map.of("downloadUrl", downloadUrl));
     }
 

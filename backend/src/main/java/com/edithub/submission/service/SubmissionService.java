@@ -1,6 +1,8 @@
 package com.edithub.submission.service;
 
 import com.edithub.project.model.Project;
+import com.edithub.project.model.ProjectStatus;
+import com.edithub.project.model.ProjectVisibility;
 import com.edithub.project.repository.ProjectRepository;
 import com.edithub.submission.dto.CreateSubmissionRequest;
 import com.edithub.submission.dto.SubmissionDto;
@@ -32,6 +34,12 @@ public class SubmissionService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
 
+        validateProjectAccess(project, editor);
+
+        if (project.getStatus() == ProjectStatus.ARCHIVED || project.getStatus() == ProjectStatus.COMPLETED) {
+            throw new IllegalArgumentException("Cannot submit edits to an archived or completed project");
+        }
+
         Version version = versionRepository.findById(request.getVersionId())
                 .orElseThrow(() -> new IllegalArgumentException("Version not found: " + request.getVersionId()));
 
@@ -60,16 +68,26 @@ public class SubmissionService {
     }
 
     @Transactional(readOnly = true)
-    public Page<SubmissionDto> getProjectSubmissions(UUID projectId, Pageable pageable) {
+    public Page<SubmissionDto> getProjectSubmissions(UUID projectId, Pageable pageable, User currentUser) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        validateProjectAccess(project, currentUser);
         return submissionRepository.findByProject(project, pageable).map(SubmissionDto::fromEntity);
     }
 
     @Transactional(readOnly = true)
-    public SubmissionDto getSubmissionById(UUID submissionId) {
+    public SubmissionDto getSubmissionById(UUID submissionId, User currentUser) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("Submission not found: " + submissionId));
+        validateProjectAccess(submission.getProject(), currentUser);
         return SubmissionDto.fromEntity(submission);
+    }
+
+    private void validateProjectAccess(Project project, User currentUser) {
+        if (project.getVisibility() == ProjectVisibility.PRIVATE) {
+            if (currentUser == null || !project.getOwner().getId().equals(currentUser.getId())) {
+                throw new SecurityException("Access denied to private project");
+            }
+        }
     }
 }

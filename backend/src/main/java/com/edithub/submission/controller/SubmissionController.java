@@ -39,15 +39,18 @@ public class SubmissionController {
     public ApiResponse<Page<SubmissionDto>> getProjectSubmissions(
             @PathVariable UUID projectId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal User currentUser) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100), Sort.by("createdAt").descending());
-        Page<SubmissionDto> submissions = submissionService.getProjectSubmissions(projectId, pageable);
+        Page<SubmissionDto> submissions = submissionService.getProjectSubmissions(projectId, pageable, currentUser);
         return ApiResponse.ok(submissions);
     }
 
     @GetMapping("/submissions/{id}")
-    public ApiResponse<SubmissionDto> getSubmissionDetails(@PathVariable UUID id) {
-        SubmissionDto submission = submissionService.getSubmissionById(id);
+    public ApiResponse<SubmissionDto> getSubmissionDetails(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal User currentUser) {
+        SubmissionDto submission = submissionService.getSubmissionById(id, currentUser);
         return ApiResponse.ok(submission);
     }
 }

@@ -5,6 +5,7 @@ import com.edithub.comment.dto.CreateCommentRequest;
 import com.edithub.comment.model.Comment;
 import com.edithub.comment.repository.CommentRepository;
 import com.edithub.project.model.Project;
+import com.edithub.project.model.ProjectVisibility;
 import com.edithub.project.repository.ProjectRepository;
 import com.edithub.submission.model.Submission;
 import com.edithub.submission.repository.SubmissionRepository;
@@ -30,6 +31,8 @@ public class CommentService {
         Project project = projectRepository.findById(request.getProjectId())
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + request.getProjectId()));
 
+        validateProjectAccess(project, author);
+
         Submission submission = null;
         if (request.getSubmissionId() != null) {
             submission = submissionRepository.findById(request.getSubmissionId()).orElse(null);
@@ -54,20 +57,30 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public List<CommentDto> getProjectComments(UUID projectId) {
+    public List<CommentDto> getProjectComments(UUID projectId, User currentUser) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        validateProjectAccess(project, currentUser);
         return commentRepository.findByProjectOrderByCreatedAtAsc(project).stream()
                 .map(CommentDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<CommentDto> getSubmissionComments(UUID submissionId) {
+    public List<CommentDto> getSubmissionComments(UUID submissionId, User currentUser) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("Submission not found"));
+        validateProjectAccess(submission.getProject(), currentUser);
         return commentRepository.findBySubmissionOrderByCreatedAtAsc(submission).stream()
                 .map(CommentDto::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    private void validateProjectAccess(Project project, User currentUser) {
+        if (project.getVisibility() == ProjectVisibility.PRIVATE) {
+            if (currentUser == null || !project.getOwner().getId().equals(currentUser.getId())) {
+                throw new SecurityException("Access denied to private project");
+            }
+        }
     }
 }

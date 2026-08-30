@@ -32,14 +32,18 @@ public class CommentController {
     }
 
     @GetMapping("/projects/{projectId}/comments")
-    public ApiResponse<List<CommentDto>> getProjectComments(@PathVariable UUID projectId) {
-        List<CommentDto> comments = commentService.getProjectComments(projectId);
+    public ApiResponse<List<CommentDto>> getProjectComments(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal User currentUser) {
+        List<CommentDto> comments = commentService.getProjectComments(projectId, currentUser);
         return ApiResponse.ok(comments);
     }
 
     @GetMapping("/submissions/{submissionId}/comments")
-    public ApiResponse<List<CommentDto>> getSubmissionComments(@PathVariable UUID submissionId) {
-        List<CommentDto> comments = commentService.getSubmissionComments(submissionId);
+    public ApiResponse<List<CommentDto>> getSubmissionComments(
+            @PathVariable UUID submissionId,
+            @AuthenticationPrincipal User currentUser) {
+        List<CommentDto> comments = commentService.getSubmissionComments(submissionId, currentUser);
         return ApiResponse.ok(comments);
     }
 }

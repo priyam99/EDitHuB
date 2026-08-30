@@ -23,7 +23,7 @@ public class S3StorageService {
     @Value("${app.storage.bucket-media:edithub-media}")
     private String mediaBucket;
 
-    @Value("${app.storage.presigned-url-expiration-minutes:60}")
+    @Value("${app.storage.presigned-url-expiration-minutes:15}")
     private long expirationMinutes;
 
     public String generatePresignedUploadUrl(String storageKey, String contentType, long fileSize) {

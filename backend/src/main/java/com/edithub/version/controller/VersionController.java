@@ -33,14 +33,18 @@ public class VersionController {
     }
 
     @GetMapping("/projects/{projectId}/versions")
-    public ApiResponse<List<VersionDto>> getProjectVersions(@PathVariable UUID projectId) {
-        List<VersionDto> versions = versionService.getProjectVersions(projectId);
+    public ApiResponse<List<VersionDto>> getProjectVersions(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal User currentUser) {
+        List<VersionDto> versions = versionService.getProjectVersions(projectId, currentUser);
         return ApiResponse.ok(versions);
     }
 
     @GetMapping("/versions/{id}")
-    public ApiResponse<VersionDto> getVersionDetails(@PathVariable UUID id) {
-        VersionDto version = versionService.getVersionById(id);
+    public ApiResponse<VersionDto> getVersionDetails(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal User currentUser) {
+        VersionDto version = versionService.getVersionById(id, currentUser);
         return ApiResponse.ok(version);
     }
 }

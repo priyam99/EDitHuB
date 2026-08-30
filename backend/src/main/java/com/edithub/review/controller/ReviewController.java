@@ -33,8 +33,10 @@ public class ReviewController {
     }
 
     @GetMapping("/submissions/{id}/reviews")
-    public ApiResponse<List<ReviewDto>> getSubmissionReviews(@PathVariable UUID id) {
-        List<ReviewDto> reviews = reviewService.getSubmissionReviews(id);
+    public ApiResponse<List<ReviewDto>> getSubmissionReviews(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal User currentUser) {
+        List<ReviewDto> reviews = reviewService.getSubmissionReviews(id, currentUser);
         return ApiResponse.ok(reviews);
     }
 }

@@ -1,5 +1,7 @@
 package com.edithub.review.service;
 
+import com.edithub.project.model.Project;
+import com.edithub.project.model.ProjectVisibility;
 import com.edithub.review.dto.CreateReviewRequest;
 import com.edithub.review.dto.ReviewDto;
 import com.edithub.review.model.Review;
@@ -67,11 +69,20 @@ public class ReviewService {
     }
 
     @Transactional(readOnly = true)
-    public List<ReviewDto> getSubmissionReviews(UUID submissionId) {
+    public List<ReviewDto> getSubmissionReviews(UUID submissionId, User currentUser) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("Submission not found"));
+        validateProjectAccess(submission.getProject(), currentUser);
         return reviewRepository.findBySubmissionOrderByCreatedAtDesc(submission).stream()
                 .map(ReviewDto::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    private void validateProjectAccess(Project project, User currentUser) {
+        if (project.getVisibility() == ProjectVisibility.PRIVATE) {
+            if (currentUser == null || !project.getOwner().getId().equals(currentUser.getId())) {
+                throw new SecurityException("Access denied to private project");
+            }
+        }
     }
 }

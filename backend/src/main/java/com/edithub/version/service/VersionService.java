@@ -2,6 +2,8 @@ package com.edithub.version.service;
 
 import com.edithub.media.service.S3StorageService;
 import com.edithub.project.model.Project;
+import com.edithub.project.model.ProjectStatus;
+import com.edithub.project.model.ProjectVisibility;
 import com.edithub.project.repository.ProjectRepository;
 import com.edithub.user.model.User;
 import com.edithub.version.dto.CreateVersionRequest;
@@ -30,6 +32,12 @@ public class VersionService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
 
+        validateProjectAccess(project, editor);
+
+        if (project.getStatus() == ProjectStatus.ARCHIVED || project.getStatus() == ProjectStatus.COMPLETED) {
+            throw new IllegalArgumentException("Cannot contribute versions to an archived or completed project");
+        }
+
         Version parentVersion = null;
         int versionNum = 1;
         if (request.getParentVersionId() != null) {
@@ -57,9 +65,10 @@ public class VersionService {
     }
 
     @Transactional(readOnly = true)
-    public List<VersionDto> getProjectVersions(UUID projectId) {
+    public List<VersionDto> getProjectVersions(UUID projectId, User currentUser) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        validateProjectAccess(project, currentUser);
         return versionRepository.findByProjectOrderByCreatedAtDesc(project).stream()
                 .map(VersionDto::fromEntity)
                 .map(this::attachUrls)
@@ -67,10 +76,19 @@ public class VersionService {
     }
 
     @Transactional(readOnly = true)
-    public VersionDto getVersionById(UUID versionId) {
+    public VersionDto getVersionById(UUID versionId, User currentUser) {
         Version version = versionRepository.findById(versionId)
                 .orElseThrow(() -> new IllegalArgumentException("Version not found: " + versionId));
+        validateProjectAccess(version.getProject(), currentUser);
         return attachUrls(VersionDto.fromEntity(version));
+    }
+
+    private void validateProjectAccess(Project project, User currentUser) {
+        if (project.getVisibility() == ProjectVisibility.PRIVATE) {
+            if (currentUser == null || !project.getOwner().getId().equals(currentUser.getId())) {
+                throw new SecurityException("Access denied to private project");
+            }
+        }
     }
 
     private VersionDto attachUrls(VersionDto dto) {
