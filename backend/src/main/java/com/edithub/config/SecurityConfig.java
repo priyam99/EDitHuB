@@ -45,6 +45,9 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/versions/{id}").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/projects/{projectId}/submissions").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/submissions/{id}").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/submissions/{id}/reviews").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/projects/{projectId}/comments").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/submissions/{submissionId}/comments").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
