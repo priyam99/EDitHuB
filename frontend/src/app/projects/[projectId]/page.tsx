@@ -4,7 +4,8 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import { ProjectDto } from '@/lib/types';
+import { ProjectDto, MediaFileDto } from '@/lib/types';
+import { FileUploader } from '@/components/upload/FileUploader';
 
 type TabType = 'overview' | 'files' | 'versions' | 'submissions' | 'contributors';
 
@@ -13,16 +14,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
   const projectId = resolvedParams.projectId;
   const { user } = useAuth();
   const [project, setProject] = useState<ProjectDto | null>(null);
+  const [mediaFiles, setMediaFiles] = useState<MediaFileDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   useEffect(() => {
-    async function loadProject() {
+    async function loadProjectAndMedia() {
       try {
-        const res = await api.fetch<ProjectDto>(`/projects/${projectId}`);
-        if (res.success && res.data) {
-          setProject(res.data);
+        const [projRes, mediaRes] = await Promise.all([
+          api.fetch<ProjectDto>(`/projects/${projectId}`),
+          api.fetch<MediaFileDto[]>(`/projects/${projectId}/media`),
+        ]);
+
+        if (projRes.success && projRes.data) {
+          setProject(projRes.data);
+        }
+        if (mediaRes.success && mediaRes.data) {
+          setMediaFiles(mediaRes.data);
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Project not found';
@@ -31,8 +40,23 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         setLoading(false);
       }
     }
-    loadProject();
+    loadProjectAndMedia();
   }, [projectId]);
+
+  const handleDownload = async (mediaId: string) => {
+    try {
+      const res = await api.fetch<{ downloadUrl: string }>(`/media/${mediaId}/download-url`);
+      if (res.success && res.data?.downloadUrl) {
+        window.open(res.data.downloadUrl, '_blank');
+      }
+    } catch {
+      alert('Failed to generate download URL');
+    }
+  };
+
+  const handleUploadSuccess = (newMedia: MediaFileDto) => {
+    setMediaFiles((prev) => [newMedia, ...prev]);
+  };
 
   if (loading) {
     return (
@@ -110,7 +134,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
       <div className="border-b border-slate-800 flex gap-8 font-medium text-sm text-slate-400">
         {[
           { id: 'overview' as TabType, label: '📖 Overview (Brief)' },
-          { id: 'files' as TabType, label: '📁 Footage & Assets (0)' },
+          { id: 'files' as TabType, label: `📁 Footage & Assets (${mediaFiles.length})` },
           { id: 'versions' as TabType, label: '🌿 Version Tree' },
           { id: 'submissions' as TabType, label: '🔀 Submissions (PRs)' },
           { id: 'contributors' as TabType, label: '👥 Editors' },
@@ -161,12 +185,53 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         )}
 
         {activeTab === 'files' && (
-          <div className="py-12 text-center space-y-4">
-            <div className="text-4xl">📁</div>
-            <h3 className="text-lg font-bold text-white">Media Files & Assets</h3>
-            <p className="text-slate-400 text-sm max-w-md mx-auto">
-              Raw footage uploads and download URLs via S3 pre-signed URLs are integrated in Sprint 3.
-            </p>
+          <div className="space-y-6">
+            {isOwner && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-bold text-white uppercase font-mono">Upload Raw Footage / Assets</h3>
+                <FileUploader projectId={project.id} onUploadSuccess={handleUploadSuccess} />
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>📁</span> Project Footage ({mediaFiles.length})
+              </h3>
+
+              {mediaFiles.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-sm font-mono border border-slate-800 rounded-xl bg-slate-950">
+                  No footage uploaded yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {mediaFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between gap-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">
+                          {file.fileType === 'AUDIO' ? '🎵' : file.fileType === 'IMAGE' ? '🖼️' : '🎬'}
+                        </span>
+                        <div>
+                          <div className="font-bold text-white text-sm">{file.fileName}</div>
+                          <div className="text-xs text-slate-500 font-mono">
+                            {(file.fileSize / (1024 * 1024)).toFixed(2)} MB &bull; {file.mimeType} &bull; Status: <span className="text-emerald-400">{file.status}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleDownload(file.id)}
+                        className="px-4 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white font-mono text-xs transition-all flex items-center gap-1.5"
+                      >
+                        <span>⬇️</span> Download
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

@@ -44,6 +44,23 @@ export interface PageResponse<T> {
   number: number;
 }
 
+export interface MediaFileDto {
+  id: string;
+  projectId: string;
+  uploadedBy: UserDto;
+  fileName: string;
+  storageKey: string;
+  fileType: 'VIDEO' | 'AUDIO' | 'IMAGE' | 'DOCUMENT' | 'OTHER';
+  mimeType: string;
+  fileSize: number;
+  duration?: number;
+  width?: number;
+  height?: number;
+  thumbnailUrl?: string;
+  status: 'UPLOADING' | 'PROCESSING' | 'READY' | 'FAILED';
+  createdAt: string;
+}
+
 export interface CreateProjectRequest {
   title: string;
   description: string;
