@@ -4,8 +4,9 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import { ProjectDto, MediaFileDto } from '@/lib/types';
+import { ProjectDto, MediaFileDto, VersionDto, SubmissionDto, PageResponse } from '@/lib/types';
 import { FileUploader } from '@/components/upload/FileUploader';
+import { VersionTree } from '@/components/version/VersionTree';
 
 type TabType = 'overview' | 'files' | 'versions' | 'submissions' | 'contributors';
 
@@ -15,16 +16,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
   const { user } = useAuth();
   const [project, setProject] = useState<ProjectDto | null>(null);
   const [mediaFiles, setMediaFiles] = useState<MediaFileDto[]>([]);
+  const [versions, setVersions] = useState<VersionDto[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   useEffect(() => {
-    async function loadProjectAndMedia() {
+    async function loadProjectData() {
       try {
-        const [projRes, mediaRes] = await Promise.all([
+        const [projRes, mediaRes, verRes, subRes] = await Promise.all([
           api.fetch<ProjectDto>(`/projects/${projectId}`),
           api.fetch<MediaFileDto[]>(`/projects/${projectId}/media`),
+          api.fetch<VersionDto[]>(`/projects/${projectId}/versions`),
+          api.fetch<PageResponse<SubmissionDto>>(`/projects/${projectId}/submissions`),
         ]);
 
         if (projRes.success && projRes.data) {
@@ -33,6 +38,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         if (mediaRes.success && mediaRes.data) {
           setMediaFiles(mediaRes.data);
         }
+        if (verRes.success && verRes.data) {
+          setVersions(verRes.data);
+        }
+        if (subRes.success && subRes.data) {
+          setSubmissions(subRes.data.content || []);
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Project not found';
         setError(msg);
@@ -40,7 +51,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         setLoading(false);
       }
     }
-    loadProjectAndMedia();
+    loadProjectData();
   }, [projectId]);
 
   const handleDownload = async (mediaId: string) => {
@@ -135,8 +146,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         {[
           { id: 'overview' as TabType, label: '📖 Overview (Brief)' },
           { id: 'files' as TabType, label: `📁 Footage & Assets (${mediaFiles.length})` },
-          { id: 'versions' as TabType, label: '🌿 Version Tree' },
-          { id: 'submissions' as TabType, label: '🔀 Submissions (PRs)' },
+          { id: 'versions' as TabType, label: `🌿 Version Tree (${versions.length})` },
+          { id: 'submissions' as TabType, label: `🔀 Submissions (${submissions.length})` },
           { id: 'contributors' as TabType, label: '👥 Editors' },
         ].map((tab) => (
           <button
@@ -236,22 +247,59 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         )}
 
         {activeTab === 'versions' && (
-          <div className="py-12 text-center space-y-4">
-            <div className="text-4xl">🌿</div>
-            <h3 className="text-lg font-bold text-white">Version Control Tree</h3>
-            <p className="text-slate-400 text-sm max-w-md mx-auto">
-              Visual git-like version tree visualization is coming in Sprint 4.
-            </p>
-          </div>
+          <VersionTree versions={versions} />
         )}
 
         {activeTab === 'submissions' && (
-          <div className="py-12 text-center space-y-4">
-            <div className="text-4xl">🔀</div>
-            <h3 className="text-lg font-bold text-white">Edit Submissions (Pull Requests)</h3>
-            <p className="text-slate-400 text-sm max-w-md mx-auto">
-              Editor contributions, reviews, and timeline comments are coming in Sprint 4 & 5.
-            </p>
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <span>🔀</span> Edit Submissions ({submissions.length})
+            </h3>
+
+            {submissions.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-sm font-mono border border-slate-800 rounded-xl bg-slate-950">
+                No edit submissions received yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {submissions.map((sub) => (
+                  <div
+                    key={sub.id}
+                    className="p-5 bg-slate-950 border border-slate-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-base">{sub.title}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          sub.status === 'ACCEPTED'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                        }`}>
+                          {sub.status}
+                        </span>
+                      </div>
+
+                      <p className="text-slate-400 text-xs">{sub.description}</p>
+
+                      <div className="text-xs font-mono text-slate-500 pt-1">
+                        Submitted by <Link href={`/profile/${sub.editor?.username}`} className="text-indigo-400 hover:underline">@{sub.editor?.username}</Link> &bull; {new Date(sub.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+
+                    {sub.version?.previewUrl && (
+                      <a
+                        href={sub.version.previewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all self-start md:self-auto flex items-center gap-1.5"
+                      >
+                        <span>▶️</span> Review Edit
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -260,7 +308,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
             <div className="text-4xl">👥</div>
             <h3 className="text-lg font-bold text-white">Editor Contributors</h3>
             <p className="text-slate-400 text-sm max-w-md mx-auto">
-              List of video editors who have contributed edits to this project.
+              Editors who have contributed edits to this project will be listed here.
             </p>
           </div>
         )}

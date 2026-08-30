@@ -61,6 +61,34 @@ export interface MediaFileDto {
   createdAt: string;
 }
 
+export interface VersionDto {
+  id: string;
+  projectId: string;
+  editor: UserDto;
+  parentVersionId?: string;
+  versionNumber: number;
+  title: string;
+  description: string;
+  previewKey?: string;
+  previewUrl?: string;
+  sourceFileKey?: string;
+  softwareUsed?: string;
+  changes?: string;
+  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
+}
+
+export interface SubmissionDto {
+  id: string;
+  projectId: string;
+  version: VersionDto;
+  editor: UserDto;
+  title: string;
+  description: string;
+  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'CHANGES_REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN' | 'CLOSED';
+  createdAt: string;
+}
+
 export interface CreateProjectRequest {
   title: string;
   description: string;
