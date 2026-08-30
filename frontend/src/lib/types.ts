@@ -89,6 +89,27 @@ export interface SubmissionDto {
   createdAt: string;
 }
 
+export interface ReviewDto {
+  id: string;
+  submissionId: string;
+  reviewer: UserDto;
+  rating?: number;
+  feedback: string;
+  decision: 'ACCEPT' | 'REQUEST_CHANGES' | 'REJECT';
+  createdAt: string;
+}
+
+export interface CommentDto {
+  id: string;
+  projectId: string;
+  submissionId?: string;
+  author: UserDto;
+  parentCommentId?: string;
+  content: string;
+  timestampSeconds?: number;
+  createdAt: string;
+}
+
 export interface CreateProjectRequest {
   title: string;
   description: string;

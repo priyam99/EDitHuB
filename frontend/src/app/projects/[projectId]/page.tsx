@@ -7,6 +7,8 @@ import { useAuth } from '@/context/AuthContext';
 import { ProjectDto, MediaFileDto, VersionDto, SubmissionDto, PageResponse } from '@/lib/types';
 import { FileUploader } from '@/components/upload/FileUploader';
 import { VersionTree } from '@/components/version/VersionTree';
+import { ReviewModal } from '@/components/review/ReviewModal';
+import { TimelineComments } from '@/components/comment/TimelineComments';
 
 type TabType = 'overview' | 'files' | 'versions' | 'submissions' | 'contributors';
 
@@ -21,6 +23,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [selectedSubmissionForReview, setSelectedSubmissionForReview] = useState<SubmissionDto | null>(null);
 
   useEffect(() => {
     async function loadProjectData() {
@@ -67,6 +70,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
 
   const handleUploadSuccess = (newMedia: MediaFileDto) => {
     setMediaFiles((prev) => [newMedia, ...prev]);
+  };
+
+  const handleReviewSuccess = (updatedSubId: string, decision: string) => {
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === updatedSubId ? { ...s, status: decision as 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'CHANGES_REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN' | 'CLOSED' } : s))
+    );
   };
 
   if (loading) {
@@ -192,6 +201,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
                 </div>
               </div>
             )}
+
+            {/* Timeline Comments on Overview */}
+            <div className="pt-6 border-t border-slate-800">
+              <TimelineComments projectId={project.id} />
+            </div>
           </div>
         )}
 
@@ -251,7 +265,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         )}
 
         {activeTab === 'submissions' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <span>🔀</span> Edit Submissions ({submissions.length})
             </h3>
@@ -261,41 +275,61 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
                 No edit submissions received yet.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {submissions.map((sub) => (
                   <div
                     key={sub.id}
-                    className="p-5 bg-slate-950 border border-slate-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    className="p-6 bg-slate-950 border border-slate-800 rounded-xl space-y-4"
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white text-base">{sub.title}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          sub.status === 'ACCEPTED'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-                        }`}>
-                          {sub.status}
-                        </span>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-base">{sub.title}</span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            sub.status === 'ACCEPTED'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : sub.status === 'REJECTED'
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                              : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                          }`}>
+                            {sub.status}
+                          </span>
+                        </div>
+
+                        <p className="text-slate-400 text-xs">{sub.description}</p>
+
+                        <div className="text-xs font-mono text-slate-500 pt-1">
+                          Submitted by <Link href={`/profile/${sub.editor?.username}`} className="text-indigo-400 hover:underline">@{sub.editor?.username}</Link> &bull; {new Date(sub.createdAt).toLocaleString()}
+                        </div>
                       </div>
 
-                      <p className="text-slate-400 text-xs">{sub.description}</p>
+                      <div className="flex items-center gap-3">
+                        {sub.version?.previewUrl && (
+                          <a
+                            href={sub.version.previewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-200 font-mono text-xs transition-all flex items-center gap-1.5"
+                          >
+                            <span>▶️</span> Preview Video
+                          </a>
+                        )}
 
-                      <div className="text-xs font-mono text-slate-500 pt-1">
-                        Submitted by <Link href={`/profile/${sub.editor?.username}`} className="text-indigo-400 hover:underline">@{sub.editor?.username}</Link> &bull; {new Date(sub.createdAt).toLocaleString()}
+                        {isOwner && sub.status === 'SUBMITTED' && (
+                          <button
+                            onClick={() => setSelectedSubmissionForReview(sub)}
+                            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
+                          >
+                            <span>⚖️</span> Review & Decide
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {sub.version?.previewUrl && (
-                      <a
-                        href={sub.version.previewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all self-start md:self-auto flex items-center gap-1.5"
-                      >
-                        <span>▶️</span> Review Edit
-                      </a>
-                    )}
+                    {/* Timeline Comments on Submission */}
+                    <div className="pt-4 border-t border-slate-900">
+                      <TimelineComments projectId={project.id} submissionId={sub.id} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -313,6 +347,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
           </div>
         )}
       </div>
+
+      {/* Review Modal */}
+      {selectedSubmissionForReview && (
+        <ReviewModal
+          submission={selectedSubmissionForReview}
+          onClose={() => setSelectedSubmissionForReview(null)}
+          onReviewSuccess={handleReviewSuccess}
+        />
+      )}
     </div>
   );
 }
